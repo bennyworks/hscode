@@ -4,6 +4,8 @@
 """
 import json
 import requests
+import time
+import random
 from bs4 import BeautifulSoup
 from hscode.row import Hscode, BaseInfo, TaxInfo
 
@@ -100,15 +102,15 @@ def parse_tax_info(_code, details_div):
             val = ''
         tax_result.update({tds[0].text: val})
     # 税率属性值
-    unit = tax_result.get('计量单位')
-    export = tax_result.get('出口税率')
-    ex_rebate = tax_result.get('出口退税税率')
-    ex_provisional = tax_result.get('出口暂定税率')
-    vat = tax_result.get('增值税率')
-    preferential = tax_result.get('进口优惠税率')
-    im_provisional = tax_result.get('进口暂定税率')
-    import_ = tax_result.get('进口普通税率')
-    consumption = tax_result.get('消费税率')
+    unit = tax_result.get('计量单位', '')
+    export = tax_result.get('出口税率', '')
+    ex_rebate = tax_result.get('出口退税税率', '')
+    ex_provisional = tax_result.get('出口暂定税率', '')
+    vat = tax_result.get('增值税率', '')
+    preferential = tax_result.get('进口优惠税率', '')
+    im_provisional = tax_result.get('进口暂定税率', '')
+    import_ = tax_result.get('进口普通税率', '')
+    consumption = tax_result.get('消费税率', '')
     return TaxInfo(unit, export, ex_rebate, ex_provisional, vat, preferential, im_provisional, import_, consumption)
 
 
@@ -181,7 +183,7 @@ def parse_details(code, proxy=None):
     if wrap_div is None:
         none_base = BaseInfo(code)
         return Hscode(none_base, None, None, None, None, None)
-    content = soup.find(id='wrap').contents[5].contents[1]
+    content = soup.find(id='wrap').contents[3].contents[1]
     details = content.find_all('div', class_='cbox')
     base_info = parse_base_info(code, details)
     tax_info = parse_tax_info(code, details)
@@ -199,6 +201,10 @@ def search_chapter(chapter, include_outdated=False, quiet=False, proxy=None):
     all_code = []
     page_num = 1
     while True:
+        # 随机生成一个2到5之间的浮点数
+        sleep_time = random.uniform(2, 5)
+        # 暂停指定的时间
+        time.sleep(sleep_time)
         hscodes_per_page = query_hscodes_by_page(chapter, page_num, include_outdated, proxy)
         if len(hscodes_per_page) == 0:
             break
@@ -208,6 +214,10 @@ def search_chapter(chapter, include_outdated=False, quiet=False, proxy=None):
         page_num = page_num + 1
     all_code_infos = []
     for code in all_code:
+        # 随机生成一个2到5之间的浮点数
+        sleep_time = random.uniform(2, 5)
+        # 暂停指定的时间
+        time.sleep(sleep_time)
         # 解析海关编码
         hscode = parse_details(code, proxy)
         hscode_str = str(hscode)

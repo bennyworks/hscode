@@ -37,7 +37,7 @@ class Hscode():
         海关编码
     """
 
-    def __init__(self, base_info, tax, declarations, supervisions, quarantines, ciq):
+    def __init__(self, base_info, tax, declarations, supervisions, quarantines, chapters, ciq):
         """
             构造函数
         """
@@ -57,6 +57,8 @@ class Hscode():
         self.supervisions = supervisions
         # 检疫类别
         self.quarantines = quarantines
+        # 所属章节
+        self.chapters = chapters
         # CIQ代码
         self.ciq_code = ciq
 
@@ -85,9 +87,13 @@ class Hscode():
         if self.quarantines:
             arr_str = arr2json(self.quarantines)
             result += ', "quarantines": ' + arr_str
+        if self.chapters:
+            arr_str = arr2json(self.chapters)
+            result += ', "chapters": ' + arr_str
         if self.ciq_code:
             arr_str = dict2json(self.ciq_code)
             result += ', "ciq_codes": ' + arr_str
+            
         return result + ' }'
 
 

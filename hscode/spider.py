@@ -14,12 +14,35 @@ BASE_URL = 'https://www.hsbianma.com'
 
 def url2html(url, proxy):
     """
-      Get the page content of url
+      获取hscode及其详情的url地址
     """
     url_link = BASE_URL + url
     if proxy:
         url_link = proxy.replace('{url}', url_link)
     response = requests.get(url_link, timeout=1)
+    if response.status_code == 404:
+        return ''
+    response.encoding = 'utf-8'
+    content = response.text
+    if not content:
+        content = ''
+    return str(content)
+
+
+def url2html_for_hscode_cases(url, proxy=None):
+    """
+      获取hscode申报实例的地址
+    """
+    BASE_URL = 'https://www.365area.com'
+    url_link = BASE_URL + url
+    if proxy:
+        url_link = proxy.replace('{url}', url_link)
+
+    # 添加header规避防爬虫机制
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
+
+    response = requests.get(url_link, headers=headers)
+
     if response.status_code == 404:
         return ''
     response.encoding = 'utf-8'
@@ -69,6 +92,38 @@ def query_hscodes_by_page(chapter, page_index=1, outdated=False, proxy=None):
         code = parse_code_head_tr(tr_, outdated)
         if code:
             result.append(code)
+    return result
+
+
+def query_cases_by_page(hscode, page_index=1, proxy=None):
+    """
+        hscode: 10位商品编码
+        page_index: 页码
+        查询每一页的数据
+        返回所有的商品编码申报实例的集合
+    """
+    url = url = '/hscode/case/' + str(hscode) + '-' + str(page_index)
+    content = url2html_for_hscode_cases(url, proxy)
+    if not content:
+        # no response content or 404
+        return []
+    soup = BeautifulSoup(content, features='lxml')
+    all_record_tr = soup.find('div', {'id': 'hscasefind'}).table.find_all('tr')
+    if all_record_tr is None:
+        return []
+
+    result = []
+    for tr_ in all_record_tr:
+        tds = tr_.find_all('td')
+        if len(tds) == 0:
+            continue
+        # 商品名称
+        goods_name = tds[1].text
+        # 商品柜格
+        goods_desc = tds[2].text
+        result.append({'hscode': hscode, 'goods_name': goods_name,
+                       'goods_desc': goods_desc})
+
     return result
 
 
@@ -154,12 +209,58 @@ def parse_quarantines(_code, details_div):
     return quarantines
 
 
+def parse_chapters(_hscode, details_div):
+    """
+        所属章节
+    """
+    chapter_trs = details_div[7].table.tbody.find_all('tr')
+    chapters = []
+   
+    # 解析类
+    if len(chapter_trs) > 0:
+        tds = chapter_trs[0].find_all('td')
+        chapters.append({
+            'cate': {
+                'no': tds[0].text,
+                'title': tds[1].text
+            }
+        })
+    # 解析章
+    if len(chapter_trs) > 1:
+        tds = chapter_trs[1].find_all('td')
+        chapters.append({
+            'chapter': {
+                'no': tds[0].text,
+                'title': tds[1].text
+            }
+        })
+    # 解析品目
+    if len(chapter_trs) > 2:
+        tds = chapter_trs[2].find_all('td')
+        chapters.append({
+            'item': {
+                'no': tds[0].text,
+                'title': tds[1].text
+            }
+        })
+    # 解析子目
+    if len(chapter_trs) > 3:
+        tds = chapter_trs[3].find_all('td')
+        chapters.append({
+            'eight_bit': {
+                'no': tds[0].text,
+                'title': tds[1].text
+            }
+        })
+    return chapters
+
+
 def parse_ciq_codes(_hscode, details_div):
     """
         ciq编码
     """
     ciq_codes = {}
-    ciq_trs = details_div[6].table.tbody.find_all('tr')
+    ciq_trs = details_div[8].table.tbody.find_all('tr')
     for ciq_tr in ciq_trs:
         tds = ciq_tr.find_all('td')
         if len(tds) == 2:
@@ -191,7 +292,8 @@ def parse_details(code, proxy=None):
     supervisions = parse_supervision(code, details)
     quarantines = parse_quarantines(code, details)
     ciq_codes = parse_ciq_codes(code, details)
-    return Hscode(base_info, tax_info, declarations, supervisions, quarantines, ciq_codes)
+    chapters = parse_chapters(code, details)
+    return Hscode(base_info, tax_info, declarations, supervisions, quarantines, chapters, ciq_codes)
 
 
 def search_chapter(chapter, include_outdated=False, quiet=False, proxy=None):
@@ -205,11 +307,14 @@ def search_chapter(chapter, include_outdated=False, quiet=False, proxy=None):
         sleep_time = random.uniform(2, 5)
         # 暂停指定的时间
         time.sleep(sleep_time)
-        hscodes_per_page = query_hscodes_by_page(chapter, page_num, include_outdated, proxy)
+        hscodes_per_page = query_hscodes_by_page(chapter, page_num,
+                                                 include_outdated, proxy)
         if len(hscodes_per_page) == 0:
             break
         if not quiet:
-            print('Query page:chapter=' + str(chapter) + ', page=' + str(page_num))
+            print('Query page:chapter=' + str(chapter) + ', page='
+                  + str(page_num))
+
         all_code.extend(hscodes_per_page)
         page_num = page_num + 1
     all_code_infos = []
@@ -222,10 +327,38 @@ def search_chapter(chapter, include_outdated=False, quiet=False, proxy=None):
         hscode = parse_details(code, proxy)
         hscode_str = str(hscode)
         # 检验是否合法json
-        if not quiet:
-            print(hscode_str)
         json.loads(hscode_str)
         all_code_infos.append(hscode)
     if not quiet:
-        print('Item (with searching "' + chapter + '"' + (' including outdated'if include_outdated else '') + ')' + ' num: ' + str(len(all_code)))
+        print('Item (with searching "' + chapter + '"'
+              + (' including outdated'if include_outdated else '') + ')'
+              + ' num: ' + str(len(all_code)))
+
     return all_code_infos
+
+
+def search_cases(hscode, quiet=False, proxy=None):
+    """
+        查找hscode的申报实例
+    """
+    all_case = []
+    page_num = 1
+    while True:
+        # 随机生成一个2到5之间的浮点数
+        sleep_time = random.uniform(1, 3)
+        # 暂停指定的时间
+        time.sleep(sleep_time)
+        cases_per_page = query_cases_by_page(hscode, page_num, proxy)
+        if len(cases_per_page) == 0:
+            break
+        if not quiet:
+            print('Query page:hscode=' + str(hscode) + ', page='
+                  + str(page_num))
+
+        all_case.extend(cases_per_page)
+        page_num = page_num + 1
+    if not quiet:
+        print('Item (with searching "' + hscode + '"'
+              + ' num: ' + str(len(all_case)))
+
+    return all_case

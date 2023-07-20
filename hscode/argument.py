@@ -15,6 +15,7 @@ class Argument:
     def __init__(self):
         self.all_chapters = False
         self.chapter = DEFAULT_CHAPTER
+        self.hscode_case = False
         self.file_root = DEFAULT_FILE_ROOT
         self.outdated = False
         self.no_latest = False
@@ -30,6 +31,7 @@ def print_help():
     print('参数列表：')
     print('  --help|-h                     查看帮助信息')
     print('  --search|-s [chapter]         爬取具体章节(商品编码前两位)的内容，默认01')
+    print('  --hscode-case [hscode]        爬取具体章节的商品编码的申报实例,如果[hscode]有值，则从该商品编码开始爬取，配合 -s 使用')
     print('  --all|-a                      爬取所有章节的内容。该开关开启时，--search 无效')
     print('  --file-root [dir]             保存文件的根路径')
     print('                                默认值[HOME]/hascode_file')
@@ -51,7 +53,7 @@ def parse_argv(sys_argv):
     """
     length = len(sys_argv)
     result = Argument()
-    #　是否已经读取 py 参数
+    # 是否已经读取 py 参数
     read_py_file = False
     for i in range(0, length):
         arg = sys_argv[i]
@@ -62,6 +64,10 @@ def parse_argv(sys_argv):
         if arg in ['-s', '--search'] and length > i + 1 and not result.all_chapters:
             i += 1
             result.chapter = sys_argv[i]
+        # 根据查询章节爬取商品编码申报实例
+        elif arg == '--hscode-case' and length > i + 1:
+            i += 1
+            result.hscode_case = sys_argv[i]
         # 文件根目录
         elif arg == '--file-root' and length > i + 1:
             i += 1

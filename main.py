@@ -1,9 +1,12 @@
 """
-    https://www.hsbianma.com/
+    https://www.hsbianma.com/ 用于爬取海关编码及其详情
+    https://www.365area.com/ 用于爬取海关编码的申报实例 
+
     海关编码爬虫程序
     参数列表：
         --help或-h：查看帮助信息
         --search或-s [chapter]：爬取具体章节(商品编码前两位)的内容，默认01
+        --hscode-case [hscode]: 爬取具体章节的商品编码的申报实例,如果[hscode]有值，则从该商品编码开始爬取，配合 -s 使用
         --all或-a：爬取所有章节的内容。该开关开启时，-s 无效
         --file-root [dir]: 设置保存文件的根路径，默认值[HOME]/hascode_file。\
           文件命名hscode_[chapter]_YYYYMMDD_HH:mm.txt，以及hscode_[chapter]_latest.txt
@@ -15,8 +18,9 @@
 """
 import sys
 from hscode import argument
-from hscode.spider import search_chapter
-from hscode.writter import write
+from hscode.spider import search_chapter, search_cases
+from hscode.writter import write, write_cases, write_cases_ok
+from hscode.reader import read
 
 
 def search_and_save(chapter, args):
@@ -28,6 +32,21 @@ def search_and_save(chapter, args):
     proxy = args.url_proxy
     hscodes = search_chapter(chapter, include_outdated, quiet, proxy)
     write(args.file_root, chapter, hscodes, not args.no_latest)
+
+
+def search_case_and_save(chapter, args):
+    """
+        搜索商品编码申报实例并保存
+    """
+    # 读取最新的章节商品编码
+    hscodes = read(args.file_root, chapter)
+    for hscode in hscodes:
+        if type(args.hscode_case) is not bool and hscode < args.hscode_case:
+            continue
+        cases = search_cases(hscode)
+        write_cases(args.file_root, chapter, cases)
+
+    write_cases_ok(args.file_root, chapter)
 
 
 def main():
@@ -43,6 +62,7 @@ def main():
     chapter = args.chapter
     # 是否爬取所有页面
     all_search = args.all_chapters
+    # 是否爬取对应章的hscode的申报实例
 
     if all_search:
         # 01-09
@@ -52,6 +72,8 @@ def main():
         # 10-99
         for i in range(10, 100):
             search_and_save(str(i), args)
+    elif args.hscode_case:
+        search_case_and_save(str(chapter), args)
     else:
         search_and_save(str(chapter), args)
 

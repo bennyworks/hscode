@@ -2,7 +2,6 @@
 """
     Write rows to files
 """
-import time
 import os
 import json
 
@@ -26,3 +25,35 @@ def read(root_dir, chapter):
             hscodes.append(hscode)
 
     return hscodes
+
+
+def read_exception_hscode(root_dir, chapter):
+    """
+        保存运行中断时正在爬取的hscode，用于处理中断重爬
+    """
+    hscode = False
+    file_name = 'hscode_exception_' + chapter + '.txt'
+    file_path = os.path.join(root_dir, file_name)
+    if os.path.isfile(file_path):
+        with open(file_path, 'r') as file:
+            hscode = file.readline()
+            if len(hscode) == 0:
+                return False
+
+    return hscode
+
+
+def read_exception_hscode_case(root_dir, chapter):
+    """
+        保存运行中断时正在爬取的hscode，用于处理中断重爬
+    """
+    hscode = False
+    file_name = 'hscode_case_exception_' + chapter + '.txt'
+    file_path = os.path.join(root_dir, file_name)
+    if os.path.isfile(file_path):
+        with open(file_path, 'r') as file:
+            hscode = file.readline()
+            if len(hscode) == 0:
+                return False
+
+    return hscode

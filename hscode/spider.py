@@ -2,12 +2,9 @@
 """
     The spider
 """
-import json
 import requests
-import time
-import random
 from bs4 import BeautifulSoup
-from hscode.row import Hscode, BaseInfo, TaxInfo
+from hscode.row import Hscode, BaseInfo, TaxInfo, dict2json
 
 BASE_URL = 'https://www.hsbianma.com'
 
@@ -78,7 +75,7 @@ def query_hscodes_by_page(chapter, page_index=1, outdated=False, proxy=None):
         查询每一页的数据
         返回所有的商品编码集合
     """
-    url = '/Search/' + str(page_index) + '?keywords=' + str(chapter)
+    url = '/Search/' + str(page_index) + '?keywords=' + str(chapter) + '&&filterFailureCode=true'
     content = url2html(url, proxy)
     if not content:
         # no response content or 404
@@ -118,11 +115,16 @@ def query_cases_by_page(hscode, page_index=1, proxy=None):
         if len(tds) == 0:
             continue
         # 商品名称
-        goods_name = tds[1].text
+        goods_name = tds[1].text.replace('"', '\'')
         # 商品柜格
-        goods_desc = tds[2].text
-        result.append({'hscode': hscode, 'goods_name': goods_name,
-                       'goods_desc': goods_desc})
+        goods_desc = tds[2].text.replace('"', '\'')
+
+        case = {}
+        case['hscode'] = hscode
+        case['goods_name'] = goods_name
+        case['goods_desc'] = goods_desc
+
+        result.append(dict2json(case))
 
     return result
 
@@ -214,44 +216,16 @@ def parse_chapters(_hscode, details_div):
         所属章节
     """
     chapter_trs = details_div[7].table.tbody.find_all('tr')
-    chapters = []
-   
-    # 解析类
-    if len(chapter_trs) > 0:
-        tds = chapter_trs[0].find_all('td')
-        chapters.append({
-            'cate': {
-                'no': tds[0].text,
-                'title': tds[1].text
-            }
-        })
-    # 解析章
-    if len(chapter_trs) > 1:
-        tds = chapter_trs[1].find_all('td')
-        chapters.append({
-            'chapter': {
-                'no': tds[0].text,
-                'title': tds[1].text
-            }
-        })
-    # 解析品目
-    if len(chapter_trs) > 2:
-        tds = chapter_trs[2].find_all('td')
-        chapters.append({
-            'item': {
-                'no': tds[0].text,
-                'title': tds[1].text
-            }
-        })
-    # 解析子目
-    if len(chapter_trs) > 3:
-        tds = chapter_trs[3].find_all('td')
-        chapters.append({
-            'eight_bit': {
-                'no': tds[0].text,
-                'title': tds[1].text
-            }
-        })
+    chapters = {}
+
+    for tr_ in chapter_trs:
+        tds = tr_.find_all('td')
+        if len(tds) == 2:
+            item_code = tds[0].text.strip()
+            item_name = tds[1].text.strip().replace(':', '').replace(
+                '\r', '').replace('\n', '').replace(' ', '').replace(
+                '"', '').replace("'", '')
+            chapters[item_code] = item_name
     return chapters
 
 
@@ -264,8 +238,8 @@ def parse_ciq_codes(_hscode, details_div):
     for ciq_tr in ciq_trs:
         tds = ciq_tr.find_all('td')
         if len(tds) == 2:
-            ciq_code = tds[0].text
-            ciq_name = tds[1].text.replace('\r', '').replace(
+            ciq_code = tds[0].text.strip()
+            ciq_name = tds[1].text.strip().replace('\r', '').replace(
                 '\n', '').replace(' ', '').replace('"', '').replace("'", '')
             ciq_codes[ciq_code] = ciq_name
     return ciq_codes
@@ -296,17 +270,14 @@ def parse_details(code, proxy=None):
     return Hscode(base_info, tax_info, declarations, supervisions, quarantines, chapters, ciq_codes)
 
 
-def search_chapter(chapter, include_outdated=False, quiet=False, proxy=None):
+def search_chapter_hscodes(chapter, include_outdated=False,
+                           quiet=False, proxy=None):
     """
-        Search the chapter
+        找出章节的所有的海关编码
     """
     all_code = []
     page_num = 1
     while True:
-        # 随机生成一个2到5之间的浮点数
-        sleep_time = random.uniform(2, 5)
-        # 暂停指定的时间
-        time.sleep(sleep_time)
         hscodes_per_page = query_hscodes_by_page(chapter, page_num,
                                                  include_outdated, proxy)
         if len(hscodes_per_page) == 0:
@@ -317,24 +288,9 @@ def search_chapter(chapter, include_outdated=False, quiet=False, proxy=None):
 
         all_code.extend(hscodes_per_page)
         page_num = page_num + 1
-    all_code_infos = []
-    for code in all_code:
-        # 随机生成一个2到5之间的浮点数
-        sleep_time = random.uniform(2, 5)
-        # 暂停指定的时间
-        time.sleep(sleep_time)
-        # 解析海关编码
-        hscode = parse_details(code, proxy)
-        hscode_str = str(hscode)
-        # 检验是否合法json
-        json.loads(hscode_str)
-        all_code_infos.append(hscode)
-    if not quiet:
-        print('Item (with searching "' + chapter + '"'
-              + (' including outdated'if include_outdated else '') + ')'
-              + ' num: ' + str(len(all_code)))
 
-    return all_code_infos
+    all_code.sort()
+    return all_code
 
 
 def search_cases(hscode, quiet=False, proxy=None):
@@ -344,10 +300,6 @@ def search_cases(hscode, quiet=False, proxy=None):
     all_case = []
     page_num = 1
     while True:
-        # 随机生成一个2到5之间的浮点数
-        sleep_time = random.uniform(1, 3)
-        # 暂停指定的时间
-        time.sleep(sleep_time)
         cases_per_page = query_cases_by_page(hscode, page_num, proxy)
         if len(cases_per_page) == 0:
             break

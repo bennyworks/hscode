@@ -31,7 +31,7 @@ def print_help():
     print('参数列表：')
     print('  --help|-h                     查看帮助信息')
     print('  --search|-s [chapter]         爬取具体章节(商品编码前两位)的内容，默认01')
-    print('  --hscode-case [hscode]        爬取具体章节的商品编码的申报实例,如果[hscode]有值，则从该商品编码开始爬取，配合 -s 使用')
+    print('  --hscode-case [hscode]        爬取具体章节的商品编码的申报实例，配合 -s 使用')
     print('  --all|-a                      爬取所有章节的内容。该开关开启时，--search 无效')
     print('  --file-root [dir]             保存文件的根路径')
     print('                                默认值[HOME]/hascode_file')
@@ -65,9 +65,8 @@ def parse_argv(sys_argv):
             i += 1
             result.chapter = sys_argv[i]
         # 根据查询章节爬取商品编码申报实例
-        elif arg == '--hscode-case' and length > i + 1:
-            i += 1
-            result.hscode_case = sys_argv[i]
+        elif arg == '--hscode-case':
+            result.hscode_case = True
         # 文件根目录
         elif arg == '--file-root' and length > i + 1:
             i += 1

@@ -88,7 +88,7 @@ class Hscode():
             arr_str = arr2json(self.quarantines)
             result += ', "quarantines": ' + arr_str
         if self.chapters:
-            arr_str = arr2json(self.chapters)
+            arr_str = dict2json(self.chapters)
             result += ', "chapters": ' + arr_str
         if self.ciq_code:
             arr_str = dict2json(self.ciq_code)

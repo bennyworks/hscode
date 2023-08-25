@@ -137,8 +137,10 @@ def parse_base_info(code, details_div):
     base_info = BaseInfo(code)
     base_info.name = base_info_tab_txts[1].text.replace(
         '\n', '').replace('\r', '').replace(' ', '')
-    base_info.outdated = base_info_tab_txts[2].text == '过期'
-    base_info.update_time = base_info_tab_txts[3].text
+    base_info.desc = base_info_tab_txts[2].text.replace(
+        '\n', '').replace('\r', '').replace(' ', '')
+    base_info.outdated = base_info_tab_txts[3].text == '过期'
+    base_info.update_time = base_info_tab_txts[4].text
     return base_info
 
 
